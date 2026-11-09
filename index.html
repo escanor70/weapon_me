@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Weapon Me · ระบบถืออาวุธตามค่า STR</title>
+<meta name="description" content="ลองสวมอาวุธสองมือ ดูว่า STR เท่าไรถึงถือได้ และระบบตั้งชื่อชุดให้ว่าอะไร">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&family=Mitr:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#edf1f3; --panel:#f8fafb; --line:#c3cfd6; --ink:#1b2830; --muted:#52646e;
+  --steel:#2e5e7e; --steel-soft:#d9e6ee; --brass:#8a6210; --brass-soft:#f4e8c6;
+  --bad:#a33a2a; --bad-soft:#f6dcd6; --ok:#2c6b4a; --ok-soft:#d8ebe0;
+  --head:"Mitr","IBM Plex Sans Thai",sans-serif;
+  --text:"IBM Plex Sans Thai","Noto Sans Thai",system-ui,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --bg:#131b20; --panel:#1b262d; --line:#334650; --ink:#e6edf0; --muted:#9db0ba;
+    --steel:#7fb2d3; --steel-soft:#223845; --brass:#e0b95a; --brass-soft:#3a3018;
+    --bad:#ee9a8b; --bad-soft:#3d211c; --ok:#8fd1ac; --ok-soft:#1d3528;
+  }
+}
+*{box-sizing:border-box}
+html{scroll-padding-top:12px}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.65 var(--text)}
+:focus-visible{outline:3px solid var(--steel);outline-offset:2px}
+.wrap{max-width:1120px;margin:0 auto;padding:0 20px}
+header{padding:36px 0 20px}
+h1{font:500 clamp(28px,5vw,40px)/1.2 var(--head);margin:0 0 8px}
+header p{margin:0;max-width:60ch;color:var(--muted)}
+h2{font:500 22px/1.3 var(--head);margin:0 0 14px}
+
+/* builder */
+.builder{display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:20px;align-items:start;margin-bottom:44px}
+.controls,.result{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:20px}
+.field{margin-bottom:18px}
+.field label,.field .lab{display:block;font-weight:600;margin-bottom:6px}
+.str-row{display:flex;gap:12px;align-items:center}
+.str-row input[type=range]{flex:1;accent-color:var(--steel)}
+.str-row output{min-width:3ch;text-align:center;font:500 22px var(--head)}
+select,input[type=search]{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:9px 10px}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+.presets button,.chips button,td button{font:inherit;cursor:pointer;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:999px;padding:5px 14px}
+.presets button:hover,.chips button:hover,td button:hover{border-color:var(--steel)}
+.hint{font-size:14px;color:var(--muted);margin:6px 0 0}
+
+.result{min-height:100%}
+.result .lab{font-size:14px;color:var(--muted);margin:0}
+.loadout-name{font:500 clamp(34px,6.5vw,58px)/1.15 var(--head);margin:4px 0 12px;word-break:break-word}
+.star{color:var(--brass)}
+.badge{display:inline-block;font-weight:600;font-size:14px;padding:3px 12px;border-radius:4px;margin-bottom:16px}
+.badge.ok{background:var(--ok-soft);color:var(--ok)}
+.badge.power{background:var(--brass-soft);color:var(--brass)}
+.badge.bad{background:var(--bad-soft);color:var(--bad)}
+.pieces{list-style:none;margin:0;padding:0;border-top:1px solid var(--line)}
+.pieces li{display:grid;grid-template-columns:90px 1fr;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.pieces .hand{color:var(--muted)}
+.pieces .need{display:block;font-size:14px;color:var(--muted)}
+.pieces .miss{color:var(--bad);font-weight:600}
+.tip{margin:14px 0 0;padding:10px 12px;background:var(--steel-soft);border-radius:4px;font-size:15px}
+
+/* catalog */
+.tools{display:flex;flex-wrap:wrap;gap:12px;align-items:center;margin-bottom:14px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;flex:1}
+.chips button[aria-pressed=true]{background:var(--steel);border-color:var(--steel);color:#fff}
+@media (prefers-color-scheme:dark){.chips button[aria-pressed=true]{color:#0e1519}}
+.search{width:220px}
+.tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:760px}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:14px;color:var(--muted);font-weight:600;background:var(--bg)}
+tr:last-child td{border-bottom:0}
+td .en{display:block;font-size:13px;color:var(--muted)}
+td.num{text-align:right;font-variant-numeric:tabular-nums}
+td .note{display:block;font-size:13px;color:var(--brass)}
+td.act{white-space:nowrap}
+td.act button{padding:3px 10px;font-size:14px;margin-right:4px}
+.gtag{font-size:13px;padding:2px 8px;border-radius:4px;background:var(--steel-soft);white-space:nowrap}
+
+footer{padding:34px 0 60px;color:var(--muted);font-size:15px}
+footer p{max-width:70ch;margin:0 0 8px}
+
+@media (max-width:820px){
+  .builder{grid-template-columns:1fr}
+  .search{width:100%}
+}
+@media (prefers-reduced-motion:no-preference){
+  .loadout-name{transition:opacity .15s}
+  .loadout-name.swap{opacity:.25}
+}
+</style>
+</head>
+<body>
+<header class="wrap">
+  <h1>Weapon Me</h1>
+  <p>ใส่อาวุธลงสองมือ แล้วดูว่า STR เท่าไรถึงถือได้ และระบบตั้งชื่อชุดให้ว่าอะไร อาวุธสองมือที่ STR สูงพอจะถือมือเดียวได้</p>
+</header>
+
+<main class="wrap">
+  <section class="builder" aria-labelledby="bt">
+    <h2 id="bt" style="grid-column:1/-1;margin:0">ลองสวมชุดอุปกรณ์</h2>
+
+    <div class="controls">
+      <div class="field">
+        <label for="str">ค่าแรงกาย (STR)</label>
+        <div class="str-row">
+          <input id="str" type="range" min="1" max="60" value="12">
+          <output id="strOut" for="str">12</output>
+        </div>
+      </div>
+      <div class="field">
+        <label for="mainSel">มือขวา (มือหลัก)</label>
+        <select id="mainSel"></select>
+      </div>
+      <div class="field">
+        <label for="offSel">มือซ้าย (มือรอง)</label>
+        <select id="offSel"></select>
+        <p class="hint">ใส่ได้ทั้งของมือรอง อาวุธมือเดียว หรืออาวุธสองมือ (ถือฝืน)</p>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <span class="lab">ตัวอย่างเร็ว</span>
+        <div class="presets" id="presets"></div>
+      </div>
+    </div>
+
+    <div class="result" aria-live="polite">
+      <p class="lab">ชื่อชุด</p>
+      <div class="loadout-name" id="lname"></div>
+      <span class="badge" id="lbadge"></span>
+      <ul class="pieces" id="pieces"></ul>
+      <p class="tip" id="tip" hidden></p>
+    </div>
+  </section>
+
+  <section aria-labelledby="ct">
+    <h2 id="ct">รายการอุปกรณ์</h2>
+    <div class="tools">
+      <div class="chips" id="chips" role="group" aria-label="กรองตามกลุ่ม"></div>
+      <input class="search" id="q" type="search" placeholder="ค้นหาชื่อ" aria-label="ค้นหาชื่ออุปกรณ์">
+    </div>
+    <div class="tablebox">
+      <table>
+        <thead><tr>
+          <th>ชื่อ</th><th>กลุ่ม</th><th>การถือ</th><th class="num" style="text-align:right">น้ำหนัก</th>
+          <th style="text-align:right">STR ถือ 2 มือ</th><th style="text-align:right">STR ถือ 1 มือ</th><th>จุดเด่น</th><th></th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap">
+  <p>ป้าย <span class="star">★</span> (ถือฝืน) ขึ้นเมื่อมีอาวุธสองมือถูกถือด้วยมือเดียว</p>
+  <p>ค่าน้ำหนักและเกณฑ์ STR ทั้งหมดเป็นค่าชั่วคราว ยังไม่ผ่านขั้นออกแบบสมดุล แก้ได้ที่ส่วน DATA ในไฟล์นี้</p>
+</footer>
+
+<script>
+/* ============ DATA (แก้ตัวเลขตรงนี้) ============
+   grip: "1H" มือเดียวโดยกำเนิด | "V" ยืดหยุ่น 1H/2H | "2H" สองมือโดยกำเนิด
+   w: น้ำหนัก (ค่าชั่วคราว)
+   สูตรชั่วคราว: 1H/V ต้อง STR = w | 2H ถือสองมือ STR = w, ถือมือเดียว STR = ปัดขึ้น(w x 1.7) */
+const POWER_FACTOR = 1.7;
+
+const GROUPS = {
+  A:"มือเดียว", B:"ยืดหยุ่น", C:"สองมือ", D:"พิเศษ",
+  DEF:"มือรอง: ป้องกัน", MAG:"มือรอง: เวทมนตร์", UTL:"มือรอง: เครื่องมือ"
+};
+
+const WEAPONS = [
+ {id:"shortsword",th:"ดาบสั้น",en:"Short Sword",short:"ดาบสั้น",g:"A",grip:"1H",w:4,hi:"โจมตีเร็ว ท่าต่อเนื่อง"},
+ {id:"dagger",th:"มีดสั้น / กริช",en:"Dagger",short:"กริช",g:"A",grip:"1H",w:2,hi:"คริติคอลสูง แทงข้างหลัง"},
+ {id:"handaxe",th:"ขวานมือ",en:"Hand Axe",short:"ขวานมือ",g:"A",grip:"1H",w:5,hi:"ทำลายเกราะ ปานกลาง"},
+ {id:"mace",th:"กระบอง / ค้อนเบา",en:"Mace",short:"กระบอง",g:"A",grip:"1H",w:6,hi:"ได้เปรียบเกราะหนัก"},
+ {id:"rapier",th:"ดาบเรเพียร์",en:"Rapier",short:"เรเพียร์",g:"A",grip:"1H",w:3,hi:"แทงแม่นยำ ใช้ DEX"},
+ {id:"javelin",th:"หอกสั้น",en:"Javelin Spear",short:"หอกสั้น",g:"A",grip:"1H",w:4,hi:"ยื่นไกลกว่ามือเดียวทั่วไป"},
+ {id:"scimitar",th:"ดาบโค้ง",en:"Scimitar / Saber",short:"ดาบโค้ง",g:"A",grip:"1H",w:5,hi:"ฟันเฉือน ทำเลือดออก"},
+ {id:"flail",th:"ลูกตุ้มโซ่",en:"Flail",short:"ลูกตุ้ม",g:"A",grip:"1H",w:7,hi:"อ้อมโล่ศัตรู ดาเมจทื่อ"},
+ {id:"machete",th:"มีดพร้า",en:"Machete",short:"มีดพร้า",g:"A",grip:"1H",w:5,hi:"ฟันหนัก ตัดพุ่มไม้ได้"},
+
+ {id:"longsword",th:"ดาบยาว",en:"Longsword",short:"ดาบยาว",g:"B",grip:"V",w:8,hi:"1H ใช้คู่โล่ได้ | 2H ดาเมจเพิ่ม"},
+ {id:"broadsword",th:"ดาบกว้าง",en:"Broadsword",short:"ดาบกว้าง",g:"B",grip:"V",w:10,hi:"1H ฟันกว้าง | 2H ฟันหนัก"},
+ {id:"battleaxe",th:"ขวานรบ",en:"Battle Axe",short:"ขวานรบ",g:"B",grip:"V",w:11,hi:"1H ปานกลาง | 2H ทำลายล้างสูง"},
+ {id:"spear",th:"หอกยาว",en:"Spear",short:"หอกยาว",g:"B",grip:"V",w:9,hi:"1H ยื่นปกติ | 2H ยื่นไกล เจาะเกราะ",note:"ความยาวทำให้ถือมือเดียวเสียสมดุล"},
+ {id:"staff",th:"ไม้พลอง",en:"Staff",short:"ไม้พลอง",g:"B",grip:"V",w:6,hi:"1H ปัดป้อง | 2H โจมตีระยะกว้าง"},
+ {id:"katana",th:"คาตานะ",en:"Katana",short:"คาตานะ",g:"B",grip:"V",w:7,hi:"1H ฟันเร็ว | 2H คริติคอลสูง"},
+ {id:"bastard",th:"ดาบมือครึ่ง",en:"Bastard Sword",short:"ดาบมือครึ่ง",g:"B",grip:"V",w:10,hi:"1H ต้องใช้แรงมาก | 2H ดาเมจสูง"},
+ {id:"trident",th:"ตรีศูล",en:"Trident",short:"ตรีศูล",g:"B",grip:"V",w:9,hi:"1H แทง/เกี่ยว | 2H ตรึงศัตรู",note:"ความยาวทำให้ถือมือเดียวเสียสมดุล"},
+
+ {id:"greatsword",th:"ดาบใหญ่",en:"Greatsword",short:"ดาบใหญ่",g:"C",grip:"2H",w:14,hi:"ฟันกวาดพื้นที่กว้าง"},
+ {id:"greataxe",th:"ขวานใหญ่",en:"Greataxe",short:"ขวานใหญ่",g:"C",grip:"2H",w:16,hi:"ดาเมจต่อครั้งสูง"},
+ {id:"warhammer",th:"ค้อนสงคราม",en:"Warhammer",short:"ค้อนสงคราม",g:"C",grip:"2H",w:18,hi:"ทำให้มึน/ล้มศัตรู"},
+ {id:"halberd",th:"ง้าว / ทวน",en:"Polearm / Halberd",short:"ง้าว",g:"C",grip:"2H",w:15,hi:"ระยะไกล เกี่ยว/เจาะ",note:"ความยาวทำให้ถือมือเดียวเสียสมดุล"},
+ {id:"colossal",th:"ดาบยักษ์",en:"Colossal Sword",short:"ดาบยักษ์",g:"C",grip:"2H",w:24,hi:"ดาเมจสูงสุด ช้ามาก"},
+ {id:"maul",th:"ค้อนยักษ์",en:"Maul",short:"ค้อนยักษ์",g:"C",grip:"2H",w:22,hi:"ทุบเกราะ/โล่ แรงปะทะสูง"},
+ {id:"scythe",th:"เคียวใหญ่",en:"Scythe",short:"เคียว",g:"C",grip:"2H",w:13,hi:"ฟันกวาดครึ่งวงกลม ทำเลือดออก",note:"ความยาวทำให้ถือมือเดียวเสียสมดุล"},
+
+ {id:"claws",th:"กรงเล็บ / นวม",en:"Claws / Fist",short:"กรงเล็บ",g:"D",grip:"1H",w:4,hi:"ระยะสั้นมาก คอมโบเร็ว"},
+ {id:"whip",th:"แซ่ / โซ่",en:"Whip / Chain",short:"แซ่",g:"D",grip:"1H",w:3,hi:"ยื่นไกลแบบยืดหยุ่น เกี่ยวศัตรู"}
+];
+
+const ITEMS = [
+ {id:"shield",th:"โล่",en:"Shield",short:"โล่",g:"DEF",w:6,hi:"กันดาเมจได้ดี ใช้คู่ดาบ"},
+ {id:"buckler",th:"โล่เล็ก",en:"Buckler",short:"โล่เล็ก",g:"DEF",w:3,hi:"ปัดป้องจังหวะดี เคลื่อนที่คล่อง"},
+ {id:"tower",th:"โล่หอคอย",en:"Tower Shield",short:"โล่หอคอย",g:"DEF",w:14,hi:"กันได้กว้างสุด แต่ช้า"},
+ {id:"parry",th:"มีดป้องกัน",en:"Parrying Dagger",short:"มีดป้องกัน",g:"DEF",w:2,hi:"ปัดป้องและสวนกลับ"},
+ {id:"wand",th:"ไม้กายสิทธิ์ / คทา",en:"Wand / Scepter",short:"คทา",g:"MAG",w:2,hi:"เสริมพลังเวทมนตร์ ร่ายเร็วขึ้น"},
+ {id:"tome",th:"คัมภีร์เวท",en:"Spell Tome",short:"คัมภีร์",g:"MAG",w:2,hi:"เปลี่ยนชุดเวทมนตร์"},
+ {id:"orb",th:"ลูกแก้วเวท",en:"Magic Orb",short:"ลูกแก้ว",g:"MAG",w:3,hi:"เก็บพลังเวท ปล่อยเสริมดาเมจ"},
+ {id:"torch",th:"คบเพลิง",en:"Torch",short:"คบเพลิง",g:"UTL",w:2,hi:"ส่องสว่าง ดาเมจไฟเล็กน้อย"}
+];
+
+const PRESETS = [
+ {label:"ดาบโล่",str:12,main:"longsword",off:"i:shield"},
+ {label:"ดาบใหญ่ STR ต่ำ",str:12,main:"greatsword",off:""},
+ {label:"ดาบใหญ่ + โล่",str:28,main:"greatsword",off:"i:shield"},
+ {label:"ค้อนสงครามคู่",str:34,main:"warhammer",off:"w:warhammer"},
+ {label:"ดาบคู่",str:10,main:"shortsword",off:"w:shortsword"}
+];
+/* ============ END DATA ============ */
+
+const byId = (arr,id)=>arr.find(x=>x.id===id);
+const need = x => x.grip==="2H"
+  ? {two:x.w, one:Math.ceil(x.w*POWER_FACTOR)}
+  : {two:null, one:x.w};
+const gripText = {"1H":"มือเดียว","V":"1H / 2H","2H":"สองมือ"};
+
+/* ---- core rules ---- */
+function evaluate(str, mainId, offVal){
+  const main = byId(WEAPONS, mainId);
+  const mr = need(main);
+  const pieces = [];
+  let ok = true, power = false, tip = "";
+  let offKind = "none", off = null;
+  if(offVal.startsWith("i:")){ offKind="item"; off=byId(ITEMS,offVal.slice(2)); }
+  else if(offVal.startsWith("w:")){ offKind="weapon"; off=byId(WEAPONS,offVal.slice(2)); }
+
+  // main hand
+  let mMode, mNeed;
+  if(main.grip==="2H"){
+    if(offKind==="none"){ mMode="ถือสองมือ"; mNeed=mr.two; }
+    else { mMode="ถือมือเดียว (ถือฝืน)"; mNeed=mr.one; power=true; }
+  } else {
+    mNeed = mr.one;
+    mMode = (main.grip==="V" && offKind==="none") ? "ถือสองมือ (โหมด 2H)" : "ถือมือเดียว";
+  }
+  const mOk = str>=mNeed; if(!mOk) ok=false;
+  pieces.push({hand:"มือขวา", name:main.th, mode:mMode, need:mNeed, ok:mOk, note:main.note&&mMode.includes("มือเดียว")?main.note:""});
+
+  // off hand
+  if(offKind==="item"){
+    const o = str>=off.w; if(!o) ok=false;
+    pieces.push({hand:"มือซ้าย", name:off.th, mode:"ถือมือรอง", need:off.w, ok:o});
+  } else if(offKind==="weapon"){
+    const r = need(off); const o = str>=r.one; if(!o) ok=false;
+    const p = off.grip==="2H"; if(p) power=true;
+    pieces.push({hand:"มือซ้าย", name:off.th, mode:p?"ถือมือเดียว (ถือฝืน)":"ถือมือเดียว", need:r.one, ok:o, note:p&&off.note?off.note:""});
+  } else {
+    pieces.push({hand:"มือซ้าย", name:"ว่าง", mode:main.grip==="2H"||main.grip==="V"?"ใช้ช่วยจับ":"ไม่มีของ", need:null, ok:true});
+  }
+
+  // name
+  let name = "";
+  if(ok){
+    if(offKind==="none") name = main.grip==="2H" ? main.short : main.short + (main.grip==="V"?"สองมือ":"เดี่ยว");
+    else if(offKind==="item") name = main.short + off.short;
+    else name = (off.id===main.id) ? main.short+"คู่" : main.short+off.short;
+  }
+
+  // tip
+  if(ok && main.grip==="2H" && offKind==="none" && str>=mr.one)
+    tip = "STR ถึงเกณฑ์ถือมือเดียวแล้ว ลองใส่ของในมือซ้าย เช่น โล่";
+  if(!ok){
+    const lacks = pieces.filter(p=>!p.ok).map(p=>p.need-str);
+    tip = "ขาด STR อีก " + Math.max(...lacks) + " ถึงจะใส่ชุดนี้ได้";
+  }
+  return {ok, power, name, pieces, tip};
+}
+
+/* ---- builder UI ---- */
+const $ = id => document.getElementById(id);
+const strEl=$("str"), mainSel=$("mainSel"), offSel=$("offSel");
+
+function fillSelects(){
+  const groups = ["A","B","C","D"];
+  mainSel.innerHTML = groups.map(g=>
+    `<optgroup label="${GROUPS[g]}">`+WEAPONS.filter(w=>w.g===g).map(w=>`<option value="${w.id}">${w.th}</option>`).join("")+`</optgroup>`
+  ).join("");
+  let h = `<option value="">ว่าง</option>`;
+  ["DEF","MAG","UTL"].forEach(g=>{
+    h += `<optgroup label="${GROUPS[g]}">`+ITEMS.filter(i=>i.g===g).map(i=>`<option value="i:${i.id}">${i.th}</option>`).join("")+`</optgroup>`;
+  });
+  h += `<optgroup label="อาวุธมือเดียว / ยืดหยุ่น">`+WEAPONS.filter(w=>w.grip!=="2H").map(w=>`<option value="w:${w.id}">${w.th}</option>`).join("")+`</optgroup>`;
+  h += `<optgroup label="อาวุธสองมือ (ถือฝืน)">`+WEAPONS.filter(w=>w.grip==="2H").map(w=>`<option value="w:${w.id}">${w.th}</option>`).join("")+`</optgroup>`;
+  offSel.innerHTML = h;
+  mainSel.value = "longsword"; offSel.value = "i:shield";
+}
+
+function render(){
+  const str = +strEl.value; $("strOut").textContent = str;
+  const r = evaluate(str, mainSel.value, offSel.value);
+  const nameEl = $("lname");
+  const next = r.ok ? r.name + (r.power ? ' <span class="star" title="ถือฝืน">★</span>' : "") : "ใส่ไม่ได้";
+  if(nameEl.innerHTML !== next){
+    nameEl.classList.add("swap");
+    requestAnimationFrame(()=>{ nameEl.innerHTML = next; nameEl.classList.remove("swap"); });
+  }
+  const b = $("lbadge");
+  b.className = "badge " + (!r.ok ? "bad" : r.power ? "power" : "ok");
+  b.textContent = !r.ok ? "STR ไม่พอ" : r.power ? "ถือฝืน (Power Grip)" : "ถือได้ปกติ";
+  $("pieces").innerHTML = r.pieces.map(p=>`
+    <li><span class="hand">${p.hand}</span>
+    <span>${p.name} <span class="${p.ok?"":"miss"}">${p.mode}</span>
+    <span class="need">${p.need===null?"":`ต้อง STR ${p.need} (ตอนนี้ ${str})`}${p.note?` · ${p.note}`:""}</span></span></li>`).join("");
+  const tip = $("tip"); tip.hidden = !r.tip; tip.textContent = r.tip;
+}
+
+fillSelects();
+$("presets").innerHTML = PRESETS.map((p,i)=>`<button type="button" data-i="${i}">${p.label}</button>`).join("");
+$("presets").addEventListener("click", e=>{
+  const i = e.target.dataset.i; if(i===undefined) return;
+  const p = PRESETS[i]; strEl.value=p.str; mainSel.value=p.main; offSel.value=p.off; render();
+});
+[strEl,mainSel,offSel].forEach(el=>el.addEventListener("input",render));
+
+/* ---- catalog ---- */
+let filter = "ALL", query = "";
+const chipDefs = [["ALL","ทั้งหมด"],["A","มือเดียว"],["B","ยืดหยุ่น"],["C","สองมือ"],["D","พิเศษ"],["OFF","ของมือรอง"]];
+function renderChips(){
+  $("chips").innerHTML = chipDefs.map(([k,t])=>`<button type="button" data-k="${k}" aria-pressed="${filter===k}">${t}</button>`).join("");
+}
+function renderRows(){
+  const all = [
+    ...WEAPONS.map(x=>({...x,kind:"w"})),
+    ...ITEMS.map(x=>({...x,kind:"i",grip:null}))
+  ].filter(x=>{
+    if(filter==="OFF") return x.kind==="i";
+    if(filter!=="ALL") return x.g===filter;
+    return true;
+  }).filter(x=>!query || (x.th+x.en).toLowerCase().includes(query));
+  $("rows").innerHTML = all.length ? all.map(x=>{
+    const r = x.kind==="w" ? need(x) : {two:null,one:x.w};
+    const acts = x.kind==="w"
+      ? `<button type="button" data-use="main" data-id="${x.id}">มือขวา</button><button type="button" data-use="offw" data-id="${x.id}">มือซ้าย</button>`
+      : `<button type="button" data-use="offi" data-id="${x.id}">มือซ้าย</button>`;
+    return `<tr>
+      <td>${x.th}<span class="en">${x.en}</span>${x.note?`<span class="note">${x.note}</span>`:""}</td>
+      <td><span class="gtag">${GROUPS[x.g]}</span></td>
+      <td>${x.grip?gripText[x.grip]:"มือรอง"}</td>
+      <td class="num">${x.w}</td>
+      <td class="num">${r.two??"–"}</td>
+      <td class="num">${r.one}</td>
+      <td>${x.hi}</td>
+      <td class="act">${acts}</td></tr>`;
+  }).join("") : `<tr><td colspan="8">ไม่พบรายการที่ตรงกับ "${query}" ลองค้นหาด้วยคำอื่น</td></tr>`;
+}
+$("chips").addEventListener("click", e=>{
+  const k = e.target.dataset.k; if(!k) return; filter=k; renderChips(); renderRows();
+});
+$("q").addEventListener("input", e=>{ query=e.target.value.trim().toLowerCase(); renderRows(); });
+$("rows").addEventListener("click", e=>{
+  const u = e.target.dataset.use; if(!u) return;
+  const id = e.target.dataset.id;
+  if(u==="main") mainSel.value = id;
+  if(u==="offw") offSel.value = "w:"+id;
+  if(u==="offi") offSel.value = "i:"+id;
+  render();
+  $("bt").scrollIntoView({behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto":"smooth"});
+});
+renderChips(); renderRows(); render();
+</script>
+</body>
+</html>
